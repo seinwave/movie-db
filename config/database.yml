@@ -79,12 +79,8 @@ test:
 # Read https://guides.rubyonrails.org/configuring.html#configuring-a-database
 # for a full overview on how database connection configuration can be specified.
 #
-
 production:
   <<: *default
-  database: <%= Rails.application.credentials[:render][:database] %>
-  username: <%= Rails.application.credentials[:render][:username] %>
-  password: <%= Rails.application.credentials[:render][:password] %>
-  host: <%= Rails.application.credentials[:render][:host] %>
-  port: <%= Rails.application.credentials[:render][:port] %>
-
+  database: project_production
+  username: username
+  password: <%= ENV['PROJECT_DATABASE_PASSWORD'] %>
