@@ -1,22 +1,10 @@
-# frozen_string_literatal: true
+# frozen_string_literal: true
 require 'csv'
 require 'net/http'
 require 'json'
-# open the speadsheet
-# parse the year
-# line by line:
-# - if month, set CURRENT_MONTH
-# - if movie title
-#   --> get imdb_id from OMDb
-#   - if has a date:
-#     --> set watched_date to date
-#   - if NOT has a date:
-#     --> set watched_date to the 15th of CURRENT_MONTH
-# --> then, save rating for relevant User
-#
 
- SCORES = {
-   "Fart Minus" => -1000,
+SCORES = {
+  "Fart Minus" => -1000,
   "F"  => 0,
   "D-" => 1,
   "D"  => 2,
@@ -30,18 +18,14 @@ require 'json'
   "A-" => 10,
   "A"  => 11,
   "A+" => 12
- }.freeze
+}.freeze
 
 def find_imdb_id(title)
   omdb_key = Rails.application.credentials.dig(:omdb)
   url = URI("http://www.omdbapi.com/?t=#{URI.encode(title)}&apikey=#{omdb_key}")
   response = Net::HTTP.get(url)
   data = JSON.parse(response)
-  if data['Response'] == 'True'
-    data['imdb_id']
-  else
-    nil
-  end
+  data['Response'] == 'True' ? data['imdbID'] : nil
 end
 
 def month_to_number(month_name)
@@ -50,38 +34,53 @@ end
 
 def grade_to_number(grade)
   SCORES[grade]
-end 
+end
 
 def import_data(csv_file_path)
   current_month = nil
-  current_year = File.basename(csv_file_path, '.csv')
+  current_year = File.basename(csv_file_path, '.csv').to_i
 
-  matt = User.where(email: 'mseidholz@gmail.com')
-  reba = User.where(email: 'brammershlay@gmail.com')
+  matt = User.find_by(email: 'mseidholz@gmail.com')
+  reba = User.find_by(email: 'brammershlay@gmail.com')
 
-  CSV.foreach(file_path, headers: true) do |row|
-    if MONTHS.include?(row['TITLE']) 
+  months = Date::MONTHNAMES.compact
+
+  CSV.foreach(csv_file_path, headers: true) do |row|
+    if months.include?(row['TITLE'].capitalize)
       current_month = row['TITLE']
       next
     end
 
-    next if row['TITLE'].nil? || row['title'].strip.empty?
+    next if row['TITLE'].nil? || row['TITLE'].strip.empty?
 
     movie_id = find_imdb_id(row['TITLE'])
     next unless movie_id
 
     watched_date = row['DATE']
-    rebecca_score = row['REBA']
-    matt_score = row['MATT']
+    rebecca_grade = row['REBA']
+    matt_grade = row['MATT']
 
     if watched_date.blank? && current_month && current_year
-      watched_date = Date.new(current_year.to_i, month_to_number(current_month).to_i, 15)
-    else 
-      watched_date = Date.strptime(watched_date, '%d/%m/%y')
-    end 
+      watched_date = Date.new(current_year, month_to_number(current_month), 15)
+    else
+      watched_date = Date.strptime(watched_date, '%m/%d/%y') rescue nil
+    end
 
-    if matt_score.present?
-      Rating.create!(user: matt, score:   )
-    end 
+    if matt_grade.present?
+      Rating.create!(user: matt, score: grade_to_number(matt_grade), watched_date:, imdb_id: movie_id)
+    end
+
+    if rebecca_grade.present?
+      Rating.create!(user: reba, score: grade_to_number(rebecca_grade), watched_date:, imdb_id: movie_id)
+    end
+  end
+end
+
+namespace :movies do
+  desc "Import movie ratings from CSV files"
+  task import: :environment do
+    Dir.glob('movie-csvs/*.csv') do |csv_file_path|
+      import_data(csv_file_path)
+    end
   end
 end
