@@ -10,6 +10,13 @@ class Users::OmniauthCallbacksController < Devise::OmniauthCallbacksController
 
   def google_oauth2
     user = User.from_omniauth
+
+    if user.present?
+      sign_out_from_all_scopes
+      sign_in_and_redirect user, event: :authentication
+    else
+      redirect_to new_user_session_path
+    end
   end
   # More info at:
   # https://github.com/heartcombo/devise#omniauth
