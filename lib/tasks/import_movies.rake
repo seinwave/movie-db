@@ -22,7 +22,7 @@ SCORES = {
 
 def find_imdb_id(title)
   omdb_key = Rails.application.credentials.dig(:omdb)
-  url = URI("http://www.omdbapi.com/?t=#{URI.encode(title)}&apikey=#{omdb_key}")
+  url = URI("http://www.omdbapi.com/?t=#{CGI.escape(title)}&apikey=#{omdb_key}")
   response = Net::HTTP.get(url)
   data = JSON.parse(response)
   data['Response'] == 'True' ? data['imdbID'] : nil
@@ -37,6 +37,7 @@ def grade_to_number(grade)
 end
 
 def import_data(csv_file_path)
+  puts 'FOUND CSV!'
   current_month = nil
   current_year = File.basename(csv_file_path, '.csv').to_i
 
@@ -46,12 +47,13 @@ def import_data(csv_file_path)
   months = Date::MONTHNAMES.compact
 
   CSV.foreach(csv_file_path, headers: true) do |row|
+    puts 'ROW!!'
+    next if row['TITLE'].nil? || row['TITLE'].strip.empty?
     if months.include?(row['TITLE'].capitalize)
       current_month = row['TITLE']
       next
     end
 
-    next if row['TITLE'].nil? || row['TITLE'].strip.empty?
 
     movie_id = find_imdb_id(row['TITLE'])
     next unless movie_id
@@ -67,11 +69,11 @@ def import_data(csv_file_path)
     end
 
     if matt_grade.present?
-      Rating.create!(user: matt, score: grade_to_number(matt_grade), watched_date:, imdb_id: movie_id)
+      Rating.create!(user_id: matt.id, score: grade_to_number(matt_grade), watched_date:, imdb_id: movie_id)
     end
 
     if rebecca_grade.present?
-      Rating.create!(user: reba, score: grade_to_number(rebecca_grade), watched_date:, imdb_id: movie_id)
+      Rating.create!(user_id: reba.id, score: grade_to_number(rebecca_grade), watched_date:, imdb_id: movie_id)
     end
   end
 end
@@ -79,7 +81,9 @@ end
 namespace :movies do
   desc "Import movie ratings from CSV files"
   task import: :environment do
+    puts 'TASK INITIATED!'
     Dir.glob('movie-csvs/*.csv') do |csv_file_path|
+      puts 'DOING THE TASK!'
       import_data(csv_file_path)
     end
   end
