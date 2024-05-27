@@ -48,9 +48,16 @@ def month_to_number(month_name)
   Date::MONTHNAMES.index(month_name.capitalize)
 end
 
+def grade_to_number(grade)
+  SCORES[grade]
+end 
+
 def import_data(csv_file_path)
   current_month = nil
   current_year = File.basename(csv_file_path, '.csv')
+
+  matt = User.where(email: 'mseidholz@gmail.com')
+  reba = User.where(email: 'brammershlay@gmail.com')
 
   CSV.foreach(file_path, headers: true) do |row|
     if MONTHS.include?(row['TITLE']) 
@@ -64,9 +71,17 @@ def import_data(csv_file_path)
     next unless movie_id
 
     watched_date = row['DATE']
+    rebecca_score = row['REBA']
+    matt_score = row['MATT']
 
     if watched_date.blank? && current_month && current_year
-      watched_date = Date.new(current_year.to_i, , 15)
+      watched_date = Date.new(current_year.to_i, month_to_number(current_month).to_i, 15)
+    else 
+      watched_date = Date.strptime(watched_date, '%d/%m/%y')
+    end 
 
+    if matt_score.present?
+      Rating.create!(user: matt, score:   )
+    end 
   end
 end
